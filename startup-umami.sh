@@ -1,32 +1,31 @@
 #!/bin/bash
 set -e
 
-# Directory for GeoLite2 database
-GEO_DIR=/geoip
+# Use a writable directory
+GEO_DIR=/tmp/geoip
 mkdir -p "$GEO_DIR"
 
-# Download the GeoLite2 City database from MaxMind
+# Download the GeoLite2 City database
 echo "Downloading GeoLite2 City database..."
 curl -L --fail -o /tmp/GeoLite2-City.tar.gz \
 "https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-City&license_key=$MAXMIND_LICENSE_KEY&suffix=tar.gz"
 
-# Check that the download succeeded
+# Verify download
 if [ ! -s /tmp/GeoLite2-City.tar.gz ]; then
-  echo "Error: GeoLite2 download failed or file is empty"
+  echo "Error: GeoLite2 download failed"
   exit 1
 fi
 
-# Extract the .mmdb file into /geoip
-echo "Extracting GeoLite2 database..."
+# Extract .mmdb into the writable directory
 tar -xzf /tmp/GeoLite2-City.tar.gz --strip-components=1 -C "$GEO_DIR" */GeoLite2-City.mmdb
-
-# Clean up the tar.gz
 rm /tmp/GeoLite2-City.tar.gz
 
-# Confirm the file exists (logs will show this in Render)
-echo "GeoLite2 database contents:"
+# Show the file in logs
+echo "GeoLite2 file:"
 ls -lh "$GEO_DIR"
 
-# Start Umami directly, bypassing build-geo
-echo "Starting Umami..."
+# Set environment variable for Umami to use
+export GEOLOCATION_DB_PATH="$GEO_DIR/GeoLite2-City.mmdb"
+
+# Start Umami directly
 npm run start
