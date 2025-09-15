@@ -1,34 +1,52 @@
 #!/bin/bash
-set -e
+set -e  # Exit on first error
 
-APP_DIR="/opt/render/project/src"
-GEO_DIR="$APP_DIR/geoip"
-GEO_FILE="$GEO_DIR/GeoLite2-City.mmdb"
+# -----------------------------
+# CONFIGURATION
+# -----------------------------
+# Your MaxMind license key (create a free account to get one)
+MAXMIND_LICENSE_KEY="${MAXMIND_LICENSE_KEY:-YOUR_LICENSE_KEY}"
 
-# Create geoip folder in writable app directory
+# GeoLite2 download URLs
+GEOLITE2_URL="https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-City&license_key=${MAXMIND_LICENSE_KEY}&suffix=tar.gz"
+
+# Paths
+GEO_DIR="./geoip"
+BUILD_DIR="./server"
+
+# -----------------------------
+# STEP 1: Clean old files
+# -----------------------------
+echo "Cleaning old GeoLite2 files..."
+rm -rf "$GEO_DIR"
 mkdir -p "$GEO_DIR"
 
-# Only download GeoLite2 if it doesn't already exist
-if [ ! -f "$GEO_FILE" ]; then
-  if [ -z "$MAXMIND_LICENSE_KEY" ]; then
-    echo "ERROR: MAXMIND_LICENSE_KEY environment variable is not set."
-    exit 1
-  fi
+# -----------------------------
+# STEP 2: Download and extract GeoLite2
+# -----------------------------
+echo "Downloading GeoLite2 City database..."
+curl -L -o "$GEO_DIR/GeoLite2-City.tar.gz" "$GEOLITE2_URL"
 
-  echo "Downloading GeoLite2 City database..."
-  curl -L -o /tmp/GeoLite2-City.tar.gz \
-    "https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-City&license_key=$MAXMIND_LICENSE_KEY&suffix=tar.gz"
+echo "Extracting GeoLite2 database..."
+tar -xvzf "$GEO_DIR/GeoLite2-City.tar.gz" -C "$GEO_DIR" --strip-components=1
 
-  echo "Extracting GeoLite2-City.mmdb..."
-  tar -xzf /tmp/GeoLite2-City.tar.gz --wildcards --strip-components=1 -C "$GEO_DIR" "*/GeoLite2-City.mmdb"
-else
-  echo "GeoLite2 City database already exists, skipping download."
-fi
+echo "GeoLite2 database ready."
 
-# Set Umami env variable
-export UMAMI_GEOIP_DB="$GEO_FILE"
+# -----------------------------
+# STEP 3: Install dependencies
+# -----------------------------
+echo "Installing npm dependencies..."
+npm install --legacy-peer-deps
 
-# Start Umami
-echo "Starting Umami..."
-cd "$APP_DIR"
-node server/dist/index.js
+# -----------------------------
+# STEP 4: Build Umami
+# -----------------------------
+echo "Building Umami..."
+npm run build
+npm run build:server
+
+# -----------------------------
+# STEP 5: Start Umami
+# -----------------------------
+echo "Starting Umami server..."
+node "$BUILD_DIR/dist/index.js"
