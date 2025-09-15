@@ -1,33 +1,24 @@
 #!/bin/bash
 set -e
 
-# writable directory
-GEO_DIR=/tmp/geoip
+# --- Directories ---
+APP_DIR="/opt/render/project/src"
+GEO_DIR="/tmp/geoip"  # Must be writable
+
 mkdir -p "$GEO_DIR"
 
-# download GeoLite2 City
+# --- Download GeoLite2 City database ---
 echo "Downloading GeoLite2 City database..."
-curl -L --fail -o /tmp/GeoLite2-City.tar.gz \
-"https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-City&license_key=$MAXMIND_LICENSE_KEY&suffix=tar.gz"
+curl -L -o /tmp/GeoLite2-City.tar.gz "https://geolite.maxmind.com/download/geoip/database/GeoLite2-City.tar.gz"
 
-# verify
-if [ ! -s /tmp/GeoLite2-City.tar.gz ]; then
-  echo "Error: download failed"
-  exit 1
-fi
-
-# extract the .mmdb (strip top-level folder)
+# --- Extract the MMDB ---
+echo "Extracting GeoLite2-City.mmdb..."
 tar -xzf /tmp/GeoLite2-City.tar.gz --strip-components=1 -C "$GEO_DIR" */GeoLite2-City.mmdb
 
-# clean up
-rm /tmp/GeoLite2-City.tar.gz
+# --- Set environment variable for Umami ---
+export UMAMI_GEOIP_DB="$GEO_DIR/GeoLite2-City.mmdb"
 
-# show file
-echo "GeoLite2 file:"
-ls -lh "$GEO_DIR"
-
-# set env for Umami
-export GEOLOCATION_DB_PATH="$GEO_DIR/GeoLite2-City.mmdb"
-
-# start Umami
-npm run start
+# --- Start Umami ---
+echo "Starting Umami..."
+cd "$APP_DIR"
+node server/dist/index.js
