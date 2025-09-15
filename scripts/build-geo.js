@@ -1,45 +1,48 @@
 // scripts/build-geo.js
-import fs from 'fs';
-import path from 'path';
-import maxmind from 'maxmind';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+import maxmind from "maxmind";
 
-// If using ESM, get __dirname
 const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const __dirname = path.dirname(__filename);
 
-const geoDir = path.resolve(__dirname, '../geo');
-const geoDbPath = path.join(geoDir, 'GeoLite2-City.mmdb');
-
-// Ensure the geo directory exists
-if (!fs.existsSync(geoDir)) {
-  fs.mkdirSync(geoDir, { recursive: true });
-}
-
-// Normally you’d download the GeoLite2-City.mmdb file here
-// For this example, we assume it’s already in geo/ directory
+// Path to your MaxMind DB (GeoLite2-City.mmdb)
+const GEO_DB_PATH = path.resolve(__dirname, "../data/GeoLite2-City.mmdb");
+// Output JSON path
+const OUTPUT_JSON_PATH = path.resolve(__dirname, "../public/geo/geo.json");
 
 async function buildGeo() {
   try {
-    const lookup = await maxmind.open(geoDbPath);
-
-    // Test with a sample IP to ensure DB is working
-    const testIp = '8.8.8.8';
-    const city = lookup.get(testIp);
-
-    if (city) {
-      console.log(`✅ GeoIP database ready: ${geoDbPath}`);
-      console.log(`Sample lookup for ${testIp}: ${JSON.stringify(city)}`);
-    } else {
-      console.warn(`⚠ GeoIP DB loaded, but no data for IP: ${testIp}`);
+    if (!fs.existsSync(GEO_DB_PATH)) {
+      console.error("MaxMind database not found at", GEO_DB_PATH);
+      process.exit(1);
     }
 
-    // Set the environment variable for runtime
-    process.env.GEOIP_DB = geoDbPath;
-    console.log(`GEOIP_DB set to: ${geoDbPath}`);
-  } catch (err) {
-    console.error('❌ Failed to load MaxMind DB:', err);
+    const lookup = await maxmind.open(GEO_DB_PATH);
+    const geoData = {};
+
+    // Example: Add some test IPs or ranges you care about
+    const testIps = ["8.8.8.8", "1.1.1.1"]; // replace with real IPs or ranges if needed
+    testIps.forEach((ip) => {
+      const info = lookup.get(ip);
+      if (info) {
+        geoData[ip] = {
+          city: info.city?.names?.en || null,
+          country: info.country?.names?.en || null,
+          continent: info.continent?.names?.en || null,
+          location: info.location || null,
+        };
+      }
+    });
+
+    // Ensure output directory exists
+    fs.mkdirSync(path.dirname(OUTPUT_JSON_PATH), { recursive: true });
+    fs.writeFileSync(OUTPUT_JSON_PATH, JSON.stringify(geoData, null, 2));
+
+    console.log("Geo JSON built successfully at", OUTPUT_JSON_PATH);
+  } catch (error) {
+    console.error("Error building geo data:", error);
     process.exit(1);
   }
 }
