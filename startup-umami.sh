@@ -1,52 +1,50 @@
 #!/bin/bash
-set -e  # Exit on first error
+set -e
 
-# -----------------------------
-# CONFIGURATION
-# -----------------------------
-# Your MaxMind license key (create a free account to get one)
-MAXMIND_LICENSE_KEY="${MAXMIND_LICENSE_KEY:-YOUR_LICENSE_KEY}"
+# --------------------------------------
+# Variables
+# --------------------------------------
+UMAMI_DIR="/opt/render/project/src"
+GEOIP_DIR="$UMAMI_DIR/geoip"
+MAXMIND_LICENSE_KEY="${MAXMIND_LICENSE_KEY:-}"
 
-# GeoLite2 download URLs
-GEOLITE2_URL="https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-City&license_key=${MAXMIND_LICENSE_KEY}&suffix=tar.gz"
+# --------------------------------------
+# Download GeoLite2 City database
+# --------------------------------------
+mkdir -p "$GEOIP_DIR"
 
-# Paths
-GEO_DIR="./geoip"
-BUILD_DIR="./server"
+if [ ! -f "$GEOIP_DIR/GeoLite2-City.mmdb" ]; then
+    if [ -z "$MAXMIND_LICENSE_KEY" ]; then
+        echo "ERROR: MAXMIND_LICENSE_KEY not set. Cannot download GeoLite2."
+        exit 1
+    fi
 
-# -----------------------------
-# STEP 1: Clean old files
-# -----------------------------
-echo "Cleaning old GeoLite2 files..."
-rm -rf "$GEO_DIR"
-mkdir -p "$GEO_DIR"
+    echo "Downloading GeoLite2 City database..."
+    curl -L -o "$GEOIP_DIR/GeoLite2-City.tar.gz" \
+        "https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-City&license_key=${MAXMIND_LICENSE_KEY}&suffix=tar.gz"
 
-# -----------------------------
-# STEP 2: Download and extract GeoLite2
-# -----------------------------
-echo "Downloading GeoLite2 City database..."
-curl -L -o "$GEO_DIR/GeoLite2-City.tar.gz" "$GEOLITE2_URL"
+    echo "Extracting GeoLite2 City database..."
+    tar -xvzf "$GEOIP_DIR/GeoLite2-City.tar.gz" -C "$GEOIP_DIR" --strip-components=1
 
-echo "Extracting GeoLite2 database..."
-tar -xvzf "$GEO_DIR/GeoLite2-City.tar.gz" -C "$GEO_DIR" --strip-components=1
+    rm "$GEOIP_DIR/GeoLite2-City.tar.gz"
+else
+    echo "GeoLite2 City database already exists, skipping download."
+fi
 
-echo "GeoLite2 database ready."
+# --------------------------------------
+# Build Umami
+# --------------------------------------
+cd "$UMAMI_DIR"
 
-# -----------------------------
-# STEP 3: Install dependencies
-# -----------------------------
 echo "Installing npm dependencies..."
 npm install --legacy-peer-deps
 
-# -----------------------------
-# STEP 4: Build Umami
-# -----------------------------
 echo "Building Umami..."
 npm run build
 npm run build:server
 
-# -----------------------------
-# STEP 5: Start Umami
-# -----------------------------
-echo "Starting Umami server..."
-node "$BUILD_DIR/dist/index.js"
+# --------------------------------------
+# Start Umami server
+# --------------------------------------
+echo "Starting Umami..."
+node server/dist/index.js
