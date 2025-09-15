@@ -23,7 +23,7 @@
     "build-tracker": "rollup -c rollup.tracker.config.mjs",
     "build-db": "npm-run-all copy-db-files build-db-client",
     "build-lang": "npm-run-all format-lang compile-lang download-country-names download-language-names clean-lang",
-    "build-geo": "cross-env GEOIP_DB=/opt/render/project/src/geo/GeoLite2-City.mmdb node scripts/build-geo.js",
+    "build-geo": "cross-env GEOIP_DB=/opt/render/project/src/geoip/GeoLite2-City.mmdb node scripts/build-geo.js",
     "check-geo": "node --loader ts-node/esm scripts/build-geo.js",
     "build-db-schema": "prisma db pull",
     "build-db-client": "prisma generate",
