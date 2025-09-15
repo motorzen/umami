@@ -26,6 +26,7 @@
     "build-geo": "node scripts/build-geo.js",
     "build-db-schema": "prisma db pull",
     "build-db-client": "prisma generate",
+    "build:server": "tsc --project server --outDir server/dist",
     "set-routes-manifest": "node scripts/set-routes-manifest.js",
     "update-tracker": "node scripts/update-tracker.js",
     "update-db": "prisma migrate deploy",
