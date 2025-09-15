@@ -1,30 +1,54 @@
 // scripts/build-geo.js
 import fs from "fs";
 import path from "path";
-import geoip from "maxmind";
+import maxmind from "maxmind";
 
-// Use the environment variable for the database path
-const GEO_DB_PATH = process.env.GEOIP_DB;
-if (!GEO_DB_PATH) {
-  throw new Error("Environment variable GEOIP_DB is not set.");
-}
+// Use environment variable or default path in repo
+const GEO_DB_PATH = process.env.GEOIP_DB || path.resolve("./geoip/GeoLite2-City.mmdb");
+const OUTPUT_JSON_PATH = path.resolve("./public/geo/geo.json");
 
-// Verify that the database file exists
+// Check that GeoLite2 database exists
 if (!fs.existsSync(GEO_DB_PATH)) {
-  throw new Error(`MaxMind database not found at ${GEO_DB_PATH}`);
+  console.error("MaxMind database not found at", GEO_DB_PATH);
+  process.exit(1);
 }
 
-// Output path
-const OUTPUT_JSON_PATH = path.resolve("public/geo/geo.json");
+console.log("Loading GeoLite2 database from:", GEO_DB_PATH);
 
-// Load the MaxMind database
-const lookup = geoip.openSync(GEO_DB_PATH);
+async function buildGeo() {
+  try {
+    // Open database (async API for maxmind v2)
+    const lookup = await maxmind.open(GEO_DB_PATH);
 
-// Convert the GeoLite2 database into a simple JSON mapping
-// (This is just an example; you can adjust what data you need)
-const geoData = {};
-// For demo, let's map example IPs or just export an empty JSON
-// In production, you might prefill from some list or leave empty
-fs.writeFileSync(OUTPUT_JSON_PATH, JSON.stringify(geoData, null, 2));
+    // Example: if you have a list of IPs to convert
+    // You can replace this with your actual data source
+    const sampleIPs = [
+      { ip: "8.8.8.8", label: "Google DNS" },
+      { ip: "1.1.1.1", label: "Cloudflare DNS" }
+    ];
 
-console.log(`Geo data JSON successfully written to ${OUTPUT_JSON_PATH}`);
+    const geoData = sampleIPs.map(entry => {
+      const geo = lookup.get(entry.ip);
+      return {
+        ip: entry.ip,
+        label: entry.label,
+        country: geo?.country?.iso_code || null,
+        region: geo?.subdivisions?.[0]?.iso_code || null,
+        city: geo?.city?.names?.en || null
+      };
+    });
+
+    // Ensure output directory exists
+    fs.mkdirSync(path.dirname(OUTPUT_JSON_PATH), { recursive: true });
+
+    // Write JSON file
+    fs.writeFileSync(OUTPUT_JSON_PATH, JSON.stringify(geoData, null, 2));
+
+    console.log("Geo data built successfully at:", OUTPUT_JSON_PATH);
+  } catch (err) {
+    console.error("Error building geo data:", err);
+    process.exit(1);
+  }
+}
+
+buildGeo();
