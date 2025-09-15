@@ -1,39 +1,45 @@
-import path from "path";
 import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 import maxmind from "maxmind";
 
-// 1️⃣ Paths
+// ES module equivalent of __dirname
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Paths
 const GEO_DB_PATH = process.env.GEOIP_DB || path.resolve(__dirname, "../data/GeoLite2-City.mmdb");
 const OUTPUT_JSON_PATH = path.resolve(__dirname, "../public/geo/geo.json");
 
-// 2️⃣ Check database exists
+// Check that GeoIP DB exists
 if (!fs.existsSync(GEO_DB_PATH)) {
   console.error(`MaxMind database not found at ${GEO_DB_PATH}`);
   process.exit(1);
 }
 
-// 3️⃣ Ensure output directory exists
-const outputDir = path.dirname(OUTPUT_JSON_PATH);
-if (!fs.existsSync(outputDir)) {
-  fs.mkdirSync(outputDir, { recursive: true });
-}
+console.log(`Using MaxMind DB at: ${GEO_DB_PATH}`);
 
-// 4️⃣ Open MaxMind database
+// Open MaxMind DB
 const lookup = maxmind.openSync(GEO_DB_PATH);
 
-// 5️⃣ Convert DB to JSON (example: list of cities with coordinates)
-// Note: Adjust this logic to your desired output
-const geoData = [];
-lookup.getGeoData = function(ip) {
-  try {
-    return lookup.get(ip);
-  } catch {
-    return null;
-  }
-};
+console.log("MaxMind DB opened successfully.");
 
-// Optional: if you want to export all data, you might use your own dataset of IPs
-// For demonstration, this is a minimal example with empty array
+// Example: create geo.json with country and city info for demonstration
+// You can adapt this to your existing geo processing logic
+const geoData = {};
+
+// If you have a list of IPs to map, loop through them:
+// Example IPs array (replace with your data if needed)
+const exampleIPs = ["8.8.8.8", "1.1.1.1"];
+
+exampleIPs.forEach((ip) => {
+  const geo = lookup.get(ip);
+  geoData[ip] = geo || null;
+});
+
+// Ensure output directory exists
+fs.mkdirSync(path.dirname(OUTPUT_JSON_PATH), { recursive: true });
+
+// Write geo.json
 fs.writeFileSync(OUTPUT_JSON_PATH, JSON.stringify(geoData, null, 2));
-
-console.log(`Geo data successfully generated at ${OUTPUT_JSON_PATH}`);
+console.log(`Geo JSON generated at: ${OUTPUT_JSON_PATH}`);
