@@ -2,20 +2,31 @@
 set -e
 
 # Directory for GeoLite2 database
-mkdir -p /geoip
+GEO_DIR=/geoip
+mkdir -p "$GEO_DIR"
 
-# Download the latest GeoLite2 City database (replace YOUR_LICENSE_KEY with your MaxMind license key)
-curl -L -o /tmp/GeoLite2-City.tar.gz "https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-City&license_key=$MAXMIND_LICENSE_KEY&suffix=tar.gz"
+# Download GeoLite2 City database from MaxMind using your license key
+echo "Downloading GeoLite2 City database..."
+curl -L --fail -o /tmp/GeoLite2-City.tar.gz \
+"https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-City&license_key=$MAXMIND_LICENSE_KEY&suffix=tar.gz"
+
+# Check that the file exists and is not empty
+if [ ! -s /tmp/GeoLite2-City.tar.gz ]; then
+  echo "Error: GeoLite2 download failed or file is empty"
+  exit 1
+fi
 
 # Extract the .mmdb file into /geoip
-tar -xzf /tmp/GeoLite2-City.tar.gz --strip-components=1 -C /geoip */GeoLite2-City.mmdb
+echo "Extracting GeoLite2 database..."
+tar -xzf /tmp/GeoLite2-City.tar.gz --strip-components=1 -C "$GEO_DIR" */GeoLite2-City.mmdb
 
 # Clean up
 rm /tmp/GeoLite2-City.tar.gz
 
-# Confirm file exists (this will show in Render logs)
-echo "Contents of /geoip directory:"
-ls -lh /geoip/
+# Confirm the file exists (this will show in Render logs)
+echo "Contents of $GEO_DIR:"
+ls -lh "$GEO_DIR"
 
 # Start Umami
+echo "Starting Umami..."
 npm start
