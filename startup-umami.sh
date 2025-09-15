@@ -1,57 +1,21 @@
 #!/bin/bash
 set -e
 
-# -----------------------------
-# 1. Environment check
-# -----------------------------
-echo "Checking environment..."
-if [ -z "$DATABASE_URL" ]; then
-  echo "ERROR: DATABASE_URL is not set!"
-  exit 1
-fi
+# Path to the GeoLite2 database
+GEO_DB_PATH="./server/GeoLite2-City.mmdb"
 
-if [ -z "$MAXMIND_LICENSE_KEY" ]; then
-  echo "ERROR: MAXMIND_LICENSE_KEY is not set!"
-  exit 1
-fi
+# Always download a fresh copy
+echo "Downloading fresh GeoLite2 City database..."
+curl -sSL -o "$GEO_DB_PATH.gz" "https://geolite.maxmind.com/download/geoip/database/GeoLite2-City.tar.gz"
 
-# -----------------------------
-# 2. Prepare GeoLite2 database
-# -----------------------------
-echo "Preparing GeoLite2 City database..."
+# Extract the .mmdb file from the tar.gz
+tar -xzf "$GEO_DB_PATH.gz" --strip-components=1 --wildcards "*/GeoLite2-City.mmdb" -C "$(dirname "$GEO_DB_PATH")"
 
-# Remove any existing (possibly corrupted) GeoLite2 database
-rm -rf geoip/GeoLite2-City*
+# Remove the downloaded archive
+rm "$GEO_DB_PATH.gz"
 
-# Create geoip directory if missing
-mkdir -p geoip
+echo "GeoLite2 City database downloaded."
 
-# Download fresh database
-curl -L -o geoip/GeoLite2-City.tar.gz \
-  "https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-City&license_key=${MAXMIND_LICENSE_KEY}&suffix=tar.gz"
-
-# Extract database safely
-tar -xvzf geoip/GeoLite2-City.tar.gz --strip-components=1 -C geoip/
-
-# Confirm extraction
-if [ ! -f geoip/GeoLite2-City.mmdb ]; then
-  echo "ERROR: GeoLite2-City.mmdb was not found after extraction!"
-  exit 1
-fi
-echo "GeoLite2 City database ready."
-
-# -----------------------------
-# 3. Install dependencies and build
-# -----------------------------
-echo "Installing npm dependencies..."
-npm install --legacy-peer-deps
-
-echo "Building Umami..."
-npm run build
-npm run build:server
-
-# -----------------------------
-# 4. Start Umami server
-# -----------------------------
+# Start Umami
 echo "Starting Umami..."
 node server/dist/index.js
